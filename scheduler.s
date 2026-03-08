@@ -70,5 +70,63 @@ sig_restorer:
 	mov	r7, #173		@ syscall number 173 = rt_sigreturn
 	svc	#0			@ software interrupt (syscall)  = invoke kernel
 
-_start:
+@ switch routine restores task by popping registers, the very first time a task runs, nothing
+@ pushed onto the stack, it's empty so we need to manually push onto the registers, so that
+@ first restore works same as every other restore
 
+@ Task 0 frame
+_start:
+	ldr	r0, =task0_stack	@ r0 = base address of task 0 stack
+	add	r0, r0, #STACK_SIZE	@ r0 = Top of the stack ( base + 1024) 
+					@ stack grows down,  start at top
+	ldr	r1, =task0_fn		@ r1 = address where task 0 starts executing
+	str	r1, [r0, #-4]!		@ push pc: pre-decrement r0 by 4, store r1 (! means r0 is updated)
+	mov	r1, #0
+	mov	r2, #13			@ counter: 13 register to push
+
+fake_frame_0:
+	str	r1, [r0, #-4]!		@ push 0, move sp down
+	subs	r2, r2, #1		@ decrement counter
+	bne	fake_frame_0		@ loop if not zero
+
+	ldr	r3, =task_sp		@ r3 = address of task table
+	str	r0, [r3, #0]		@ task_sp[0] = task 0's sp
+
+	ldr	r0, task1_stack
+	add	r0, r0, #STACK_SIZE
+
+	ldr	r1, =task1_fn
+	str	r1, [r0, #-4]!
+
+	mov	r1, #0
+	mov	r2, #13
+
+fake_frame_1:
+        str     r1, [r0, #-4]!          @ push 0, move sp down
+        subs    r2, r2, #1              @ decrement counter
+        bne     fake_frame_1            @ loop if not zero
+
+        ldr     r3, =task_sp            @ r3 = address of task table
+        str     r0, [r3, #4]            @ task_sp[1] = task 1's sp
+
+        ldr     r0, task2_stack
+        add     r0, r0, #STACK_SIZE
+
+        ldr     r1, =task2_fn
+        str     r1, [r0, #-4]!
+
+        mov     r1, #0
+        mov     r2, #13
+
+fake_frame_2:
+        str     r1, [r0, #-4]!          @ push 0, move sp down
+        subs    r2, r2, #1              @ decrement counter
+        bne     fake_frame_2            @ loop if not zero
+
+        ldr     r3, =task_sp            @ r3 = address of task table
+        str     r0, [r3, #8]            @ task_sp[2] = task 2's sp
+
+        @ set current_task = 0
+	ldr 	r3, =current_task
+	mov	r0, #0
+	str 	r0, [r3]
