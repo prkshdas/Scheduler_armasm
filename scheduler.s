@@ -15,21 +15,11 @@ msg_c:		.ascii "C"		@ task 2 prints this
 @ setitimer() tells linux to send a SIGALRM every N microseconds
 @ interval and initial value set to 10ms
 
-timer val:
+timer_val:
 	.word 	0			@ it_interval.tv_sec
 	.word	10000			@ it_interval.tv_usec
 	.word	0			@ it_value.tv_sec
 	.word 	10000			@ it_value.tv_usec
-
-@ sigaction struct for sigaction() syscall
-@ sigaction() tells linux to call a function Y when signal X arrives
-@ we point sa_handler at our scheduler_tick function
-
-sa_struct:
-	.word	scheduler_tick		@ sa_handler = address for our switch routine
-	.word	0x04000000		@ sa_flag = SA_RESTORER flag
-	.word	sig_restorer		@ sa_restorer = kernal signal return helper
-	.word	0			@ sa_mask = don't block any other signal
 
 @ section .bss
 @ zero-initialized RAM - values filled in at runtime
@@ -50,16 +40,26 @@ current_task:
 @ each tasks has it's own stacks
 @ stack size = 1024 bytes each
 
-.equ 	STACK_SIZE, 1024		@ each stack size 1024 bytes
+.equ 	STACK_SIZE, 	2048		@ each stack size 2048 bytes
 
-task0_stack:	.space STACK_SIZE	@ 1024 bytes of RAM for task 0
-task1_stack:	.space STACK_SIZE	@ 1024 bytes of RAM for task 1
-task2_stack:	.space STACK_SIZE	@ 1024 bytes of RAM for task 2
+task0_stack:	.space STACK_SIZE	@ 2048 bytes of RAM for task 0
+task1_stack:	.space STACK_SIZE	@ 2048 bytes of RAM for task 1
+task2_stack:	.space STACK_SIZE	@ 2048 bytes of RAM for task 2
 
 
 @ section .text
+.section .text
 .global _start				@ entry point
 
+@ sigaction struct for sigaction() syscall
+@ sigaction() tells linux to call a function Y when signal X arrives
+@ we point sa_handler at our scheduler_tick function
+
+sa_struct:
+	.word	scheduler_tick		@ sa_handler = address for our switch routine
+	.word	0x44000004		@ SA_RESTORER | SA_NODEFER | SA_SIGINFO
+	.word	sig_restorer		@ sa_restorer = kernal signal return helper
+	.word	0			@ sa_mask = don't block any other signal
 
 @ signal restorer
 @ linux pushes a signal frame for delivered signal onto the stack
@@ -68,7 +68,7 @@ task2_stack:	.space STACK_SIZE	@ 1024 bytes of RAM for task 2
 
 sig_restorer:
 	mov	r7, #173		@ syscall number 173 = rt_sigreturn
-	svc	#0			@ software interrupt (syscall)  = invoke kernel
+	svc	0			@ software interrupt (syscall)  = invoke kernel
 
 @ switch routine restores task by popping registers, the very first time a task runs, nothing
 @ pushed onto the stack, it's empty so we need to manually push onto the registers, so that
@@ -92,7 +92,7 @@ fake_frame_0:
 	ldr	r3, =task_sp		@ r3 = address of task table
 	str	r0, [r3, #0]		@ task_sp[0] = task 0's sp
 
-	ldr	r0, task1_stack
+	ldr	r0, =task1_stack
 	add	r0, r0, #STACK_SIZE
 
 	ldr	r1, =task1_fn
@@ -109,7 +109,7 @@ fake_frame_1:
         ldr     r3, =task_sp            @ r3 = address of task table
         str     r0, [r3, #4]            @ task_sp[1] = task 1's sp
 
-        ldr     r0, task2_stack
+        ldr     r0, =task2_stack
         add     r0, r0, #STACK_SIZE
 
         ldr     r1, =task2_fn
@@ -151,8 +151,8 @@ fake_frame_2:
 @ jump into task 0 - scheduler begins
 	ldr 	r3, =task_sp
 	ldr	sp, [r3, #0]
-	ldmia	sp!, {r0-r12}		@ pop 13 registers
-	ldr	pc, [sp], #4
+	ldmia	sp!, {r0-r12, lr}	@ pop 13 registers and lr
+	bx	lr			@ jump to task0_fn	
 
 @ context switch - scheduler_tick
 
@@ -174,38 +174,38 @@ scheduler_tick:
 	ldr	r2, =task_sp
 	ldr 	sp, [r2, r1, lsl #2]
 	ldmia	sp!, {r0-r12, lr}	@ pop r0-r12 and lr
-	bx	lr			@ branch to lr	
+	bx	lr	
 	
 
 @ The 3 tasks
 
 task0_fn:
+task0_loop:
 	@ task 0: print "A"
 	mov 	r7, #4			@ syscall 4 = write
 	mov	r0, #1			@ 1 (stdout)
 	ldr	r1, =msg_a		@ r1 = address of "A"
 	mov	r2, #1			@ length = 1 byte
-task0_loop:
 	svc	0			@ print "A"
 	b	task0_loop		@ loop forever
 
 task1_fn:
+task1_loop:
         @ task 1: print "B"
         mov     r7, #4                  @ syscall 4 = write
         mov     r0, #1                  @ 1 (stdout)
         ldr     r1, =msg_b              @ r1 = address of "B"
         mov     r2, #1                  @ length = 1 byte
-task1_loop:
         svc     0                       @ print "B"
         b       task1_loop              @ loop forever
 
 task2_fn:
+task2_loop:
         @ task 0: print "C"
         mov     r7, #4                  @ syscall 4 = write
         mov     r0, #1                  @ 1 (stdout)
         ldr     r1, =msg_c              @ r1 = address of "C"
         mov     r2, #1                  @ length = 1 byte
-task2_loop:
         svc     0                       @ print "C"
         b       task2_loop              @ loop forever
 

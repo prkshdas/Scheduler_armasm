@@ -2,7 +2,7 @@
 		
 AS = arm-linux-gnueabi-as		# ARM assembler
 LD = arm-linux-gnueabi-ld		# AMR linker
-QEMU = qemi-arm				# QEMU ARM user-mode
+QEMU = qemu-arm				# QEMU ARM user-mode
 
 ASFLAGS = -g				# include debug symbols (for GDB)
 LDFLAGS = -static			# statically link
