@@ -126,7 +126,86 @@ fake_frame_2:
         ldr     r3, =task_sp            @ r3 = address of task table
         str     r0, [r3, #8]            @ task_sp[2] = task 2's sp
 
-        @ set current_task = 0
+ @ set current_task = 0
 	ldr 	r3, =current_task
 	mov	r0, #0
 	str 	r0, [r3]
+
+@ SIGALRM handler
+
+	mov	r7, #174		@ syscall 174 = rt_sigaction
+	mov 	r0, #14			@ SIGALRM
+	ldr	r1, =sa_struct
+	mov	r2, #0
+	mov	r3, #8
+	svc	0
+
+@ start the timer - send SIGALRM for every 10ms
+
+	mov	r7, #104		@ syscall 104 = setitimer
+	mov	r0, #0			@ ITIMER_REAL
+	ldr	r1, =timer_val
+	mov	r2, #0
+	svc	0
+
+@ jump into task 0 - scheduler begins
+	ldr 	r3, =task_sp
+	ldr	sp, [r3, #0]
+	ldmia	sp!, {r0-r12}		@ pop 13 registers
+	ldr	pc, [sp], #4
+
+@ context switch - scheduler_tick
+
+scheduler_tick:
+	stmdb	sp!, {r0-r12, lr}	@ push r0-r12 and lr to current stack
+	ldr	r0, =current_task	@ r0 = address of current_task
+	ldr	r1, [r0]		@ r1 = current_task index
+
+	ldr	r2, =task_sp		@ r2 = base of the task table
+	str	sp, [r2, r1, lsl #2]	
+
+@ select the next task - round robin
+	add 	r1, r1, #1		@ current_task + 1
+	cmp	r1, #3			@ check last task
+	moveq	r1, #0			@ if yes, reset to 0
+	str	r1, [r0]		@ update current_task in memory
+
+@ next task
+	ldr	r2, =task_sp
+	ldr 	sp, [r2, r1, lsl #2]
+	ldmia	sp!, {r0-r12, lr}	@ pop r0-r12 and lr
+	bx	lr			@ branch to lr	
+	
+
+@ The 3 tasks
+
+task0_fn:
+	@ task 0: print "A"
+	mov 	r7, #4			@ syscall 4 = write
+	mov	r0, #1			@ 1 (stdout)
+	ldr	r1, =msg_a		@ r1 = address of "A"
+	mov	r2, #1			@ length = 1 byte
+task0_loop:
+	svc	0			@ print "A"
+	b	task0_loop		@ loop forever
+
+task1_fn:
+        @ task 1: print "B"
+        mov     r7, #4                  @ syscall 4 = write
+        mov     r0, #1                  @ 1 (stdout)
+        ldr     r1, =msg_b              @ r1 = address of "B"
+        mov     r2, #1                  @ length = 1 byte
+task1_loop:
+        svc     0                       @ print "B"
+        b       task1_loop              @ loop forever
+
+task2_fn:
+        @ task 0: print "C"
+        mov     r7, #4                  @ syscall 4 = write
+        mov     r0, #1                  @ 1 (stdout)
+        ldr     r1, =msg_c              @ r1 = address of "C"
+        mov     r2, #1                  @ length = 1 byte
+task2_loop:
+        svc     0                       @ print "C"
+        b       task2_loop              @ loop forever
+
