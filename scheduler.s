@@ -13,13 +13,13 @@ msg_c:          .ascii "C"                                      		@ task 2 print
 
 @ itimerval struct for setitimer syscall
 @ setitimer() tells linux to send a SIGALRM every N microseconds
-@ interval and initial value set to 10ms
+@ interval and initial value set to 2ms
 
 timer_val:
 				.word   0                                               @ it_interval.tv_sec
-				.word   10000                                           @ it_interval.tv_usec
+				.word   2000                                           	@ it_interval.tv_usec
 				.word   0                                               @ it_value.tv_sec
-				.word   10000                                           @ it_value.tv_usec
+				.word   2000                                           	@ it_value.tv_usec
 
 @ section .bss
 @ zero-initialized RAM - values filled in at runtime
@@ -38,11 +38,11 @@ current_task:	.space 4                                                @ index of
 @ each tasks has it's own stacks
 @ stack size = 1024 bytes each
 
-.equ    STACK_SIZE,     2048                    						@ each stack size 2048 bytes
+.equ    STACK_SIZE,     1024                    						@ each stack size 1024 bytes
 
-task0_stack:    .space STACK_SIZE               						@ 2048 bytes of RAM for task 0
-task1_stack:    .space STACK_SIZE               						@ 2048 bytes of RAM for task 1
-task2_stack:    .space STACK_SIZE               						@ 2048 bytes of RAM for task 2
+task0_stack:    .space STACK_SIZE               						@ 1024 bytes of RAM for task 0
+task1_stack:    .space STACK_SIZE               						@ 1024 bytes of RAM for task 1
+task2_stack:    .space STACK_SIZE               						@ 1024 bytes of RAM for task 2
 
 
 @ section .text

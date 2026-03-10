@@ -23,7 +23,7 @@ run: $(TARGET)
 
 # Run WITH GDB
 debug: $(TARGET)
-	$(QEMU) -g 123 ./$(TARGET) &
+	$(QEMU) -g 1234 ./$(TARGET) &
 	@echo "QEMU waiting for GDB on port 1234"
 
 # Clean

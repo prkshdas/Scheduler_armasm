@@ -4,7 +4,7 @@ A minimal preemptive task scheduler written in ARMv7-A assembly, running in Linu
 
 ## Overview
 
-Three tasks run concurrently — each printing a single character (`A`, `B`, `C`) to stdout in a loop. A `SIGALRM` signal fires every 10ms via `setitimer`, triggering the `scheduler_tick` handler which saves the current task's registers, picks the next task in round-robin order, restores its registers, and resumes it. Each task gets its own 2KB stack. No OS kernel, no C runtime — just ARM assembly and Linux syscalls.
+Three tasks run concurrently — each printing a single character (`A`, `B`, `C`) to stdout in a loop. A `SIGALRM` signal fires every 2ms via `setitimer`, triggering the `scheduler_tick` handler which saves the current task's registers, picks the next task in round-robin order, restores its registers, and resumes it. Each task gets its own 1KB stack. No OS kernel, no C runtime — just ARM assembly and Linux syscalls.
 
 ## Requirements
 
