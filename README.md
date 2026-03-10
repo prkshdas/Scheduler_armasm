@@ -1,17 +1,21 @@
 # Scheduler_armasm
 
-A minimal preemptive task scheduler written in ARMv7-A assembly, running in Linux user-space via QEMU.
+A minimal preemptive round-robin task scheduler for ARMv7-A, running in Linux user-space via QEMU.
 
-## Overview
+Three tasks print `A`, `B`, `C` in a loop. `SIGALRM` fires every 2ms via `setitimer`, triggering a context switch that saves the current task's registers (`r0–r12, lr`) and restores the next task's.
 
-Three tasks run concurrently — each printing a single character (`A`, `B`, `C`) to stdout in a loop. A `SIGALRM` signal fires every 2ms via `setitimer`, triggering the `scheduler_tick` handler which saves the current task's registers, picks the next task in round-robin order, restores its registers, and resumes it. Each task gets its own 1KB stack. No OS kernel, no C runtime — just ARM assembly and Linux syscalls.
+## Implementations
+
+Two versions are available, both doing the same thing:
+
+| Directory | Language | Entry point |
+|-----------|----------|-------------|
+| `asm/`    | Pure ARMv7-A assembly | `_start` |
+| `c_asm/`  | C + ARMv7-A assembly  | `main()` in `scheduler.c`, context switch in `context_switch.s` |
+
+The `asm/` version handles everything in assembly — task init, signal setup, timer, and context switching. The `c_asm/` version moves task setup and signal/timer init into C, keeping only the context switch in assembly.
 
 ## Requirements
-
-- `arm-linux-gnueabi-as` and `arm-linux-gnueabi-ld` (ARM cross toolchain)
-- `qemu-arm` (user-mode QEMU)
-
-On Debian/Ubuntu:
 
 ```bash
 sudo apt install gcc-arm-linux-gnueabi qemu-user
@@ -19,24 +23,27 @@ sudo apt install gcc-arm-linux-gnueabi qemu-user
 
 ## Build & Run
 
+Each implementation has its own Makefile. Navigate to the directory first:
+
 ```bash
-# Build
-make
+# Pure assembly version
+cd asm/
+make        # assemble + link
+make run    # run under qemu-arm
+make debug  # attach QEMU on port 1234 for GDB
+make clean
 
-# Run
-make run
-
-# Debug (attaches QEMU on port 1234 waiting for GDB)
-make debug
-
-# Clean
+# C + Assembly version
+cd c_asm/
+make        # compile
+make run    # run under qemu-arm
 make clean
 ```
 
-## Expected output
+## Expected Output
 
 ```
 AAAA...BBBB...CCCC...AAAA...
 ```
 
-Tasks interleave as the scheduler switches between them every 10ms.
+Tasks interleave as the scheduler switches between them every 2ms.
